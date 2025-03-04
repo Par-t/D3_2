@@ -3,32 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D3.js Bar Chart with Flask</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        #chart {
-            margin: 0 auto;
-            max-width: 600px;
-        }
-        .bar:hover {
-            fill: #8ab0c5;
-        }
-    </style>
+    <title>PCA Scree Plot</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>D3.js Bar Chart Example</h1>
-    <div id="chart"></div>
+    <h1>PCA Scree Plot</h1>
+    <svg id="screePlot" width="800" height="500"></svg>
+    <p>Select intrinsic dimensionality:</p>
+    <input type="range" id="dimSelector" min="1" max="12" value="1">
+    <span id="selectedDim">1</span>
 
-    <!-- Load D3.js from CDN -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- Load our custom JavaScript -->
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 </body>
-</html>
+</html> 
+
+

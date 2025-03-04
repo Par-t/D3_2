@@ -1,0 +1,53 @@
+/* Slider container */
+.slider-container {
+    width: 100%;
+    margin-top: 20px;
+    text-align: center;
+}
+
+/* Styling the slider itself */
+#slider {
+    width: 80%;  /* Adjust the width as needed */
+    height: 15px;
+    border-radius: 5px;
+    background: #ddd;
+    outline: none;
+    -webkit-appearance: none;
+    margin: 0 auto;
+}
+
+/* Styling the thumb of the slider */
+#slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+#slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+#slider:hover::-webkit-slider-thumb {
+    background: #45a049;
+}
+
+#slider:hover::-moz-range-thumb {
+    background: #45a049;
+}
+
+/* Text displaying the current value of the slider */
+#slider-value {
+    font-size: 1.2em;
+    color: #333;
+    margin-top: 10px;
+}
