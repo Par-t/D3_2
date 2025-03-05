@@ -1,5 +1,5 @@
 import atexit
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import os
 import pandas as pd
 import numpy as np
@@ -29,18 +29,18 @@ for col in percentage_columns:
 # Columns to sum directly
 sum_columns = ['TotalPop', 'Income'] + percentage_columns
 
-# Group by 'State' and aggregate
-df_grouped = df.groupby('State')[sum_columns].sum().reset_index()
+# Group by 'County' and aggregate
+df_grouped = df.groupby('County')[sum_columns].sum().reset_index()
 
 # Convert back to percentages
 for col in percentage_columns:
     df_grouped[col] = (df_grouped[col] * 100 / df_grouped['TotalPop']).round(2)
 
 # Save the grouped dataset
-df_grouped.to_csv(UPLOAD_FOLDER+"/grouped_by_state.csv", index=False)
+df_grouped.to_csv(UPLOAD_FOLDER+"/grouped_by_county.csv", index=False)
 
-# Drop the 'State' column and select all other numerical features for PCA
-df_to_scale = df_grouped.drop(columns=['State']).dropna()
+# Drop the 'County' column and select all other numerical features for PCA
+df_to_scale = df_grouped.drop(columns=['County']).dropna()
 
 # Standardize the data
 scaler = StandardScaler()
@@ -59,6 +59,7 @@ least_contrib_indices = np.argsort(eigenvalues)[:2]
 # Get the names of the two columns contributing the least
 least_contrib_columns = [selected_columns[i] for i in least_contrib_indices]
 
+feature_names = df_to_scale.columns.tolist()
 print(f"Two columns contributing the least: {least_contrib_columns}")
 
 print("Sum of Eigenvalues (Explained Variance Ratio):", sum(eigenvalues))
@@ -71,27 +72,23 @@ def index():
 def get_data():
     return jsonify(eigenvalues.tolist())  # Convert NumPy array to list for JSON serialization
 
-@app.route('/pca', methods=['GET'])
-def pca_data():
-    # Perform PCA with two components
-    pca_2d = PCA(n_components=2)
-    pca_result = pca_2d.fit_transform(df_scaled)
+@app.route('/biplot_data')
+def get_biplot_data():
+    # Get the first two principal components
+    pc1 = principal_components[:, 0].tolist()  # First principal component
+    pc2 = principal_components[:, 1].tolist()  # Second principal component
 
-    # Get the eigenvectors (principal components) and feature names
-    eigenvectors = pca_2d.components_
-    feature_names = df_to_scale.columns.tolist()
+    # Get the feature loadings for the first two components
+    loadings = pca.components_[:2].T.tolist()  # Transpose to match features
 
-    # Prepare the PCA result (projected data)
-    projected_data = pca_result.tolist()
-
-    # Prepare response data
-    response = {
-        'projected_data': projected_data,
-        'eigenvectors': eigenvectors.tolist(),
-        'feature_names': feature_names
+    # Prepare the data to send
+    biplot_data = {
+        "pc1": pc1,
+        "pc2": pc2,
+        "loadings": loadings,
+        "feature_names": selected_columns  # Original feature names
     }
-    
-    return jsonify(response)
 
+    return jsonify(biplot_data)
 if __name__ == '__main__':
     app.run(debug=True)

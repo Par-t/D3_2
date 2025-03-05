@@ -3,7 +3,11 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(response => response.json())
         .then(data => drawScreePlot(data))
         .catch(error => console.error("Error loading data:", error));
-        
+
+        fetch('/biplot_data')
+        .then(response => response.json())
+        .then(data => drawBiplot(data))
+        .catch(error => console.error("Error loading biplot data:", error));
 });
 
 function drawScreePlot(eigenvalues) {
@@ -122,13 +126,11 @@ function drawScreePlot(eigenvalues) {
         .attr("cx", (_, i) => xScale(`PC${i + 1}`) + xScale.bandwidth() / 2) // Midpoint of each bar
         .attr("cy", yScale) // Map the y position to the cumulative variance value
         .attr("r", 6) // Circle radius
-        .attr("fill", "red") // Highlight color
-        .attr("stroke", "black")
-        .attr("stroke-width", 1);
+        .attr("fill", "red"); // Highlight color
 
     // Label for the cumulative variance line
     svg.append("text")
-        .attr("x", width - margin.right - 50)
+        .attr("x", width - margin.right - 100)
         .attr("y", margin.top + 20)
         .attr("fill", "orange")
         .style("font-size", "14px")
@@ -150,4 +152,82 @@ function drawScreePlot(eigenvalues) {
                 .attr("stroke-width", 0);
                 
         });
+}
+
+function drawBiplot(data) {
+    const width = 800, height = 500, margin = { top: 50, right: 50, bottom: 50, left: 50 };
+
+    const svg = d3.select("#biplot")
+        .attr("width", width)
+        .attr("height", height);
+
+    // Find the maximum absolute value for scaling
+    const maxPC1 = d3.max(data.pc1.map(Math.abs));
+    const maxPC2 = d3.max(data.pc2.map(Math.abs));
+    const maxLoading = d3.max(data.loadings.flat().map(Math.abs));
+
+    // Scales for the biplot (centered at 0)
+    const xScale = d3.scaleLinear()
+        .domain([-0.5, 0.5])  // Symmetric around 0
+        .range([margin.left, width - margin.right]);
+
+    const yScale = d3.scaleLinear()
+        .domain([-0.5, 0.5])  // Symmetric around 0
+        .range([height - margin.bottom, margin.top]);
+
+    // Clear previous graph
+    svg.selectAll("*").remove();
+
+
+    // Draw data points as blue cyan dots
+    svg.selectAll(".point")
+        .data(data.pc1)
+        .enter()
+        .append("circle")
+        .attr("class", "point")
+        .attr("cx", (d, i) => xScale(Math.max(-0.5, Math.min(0.5, data.pc1[i]))))  // Clip x to [-2, 2]
+        .attr("cy", (d, i) => yScale(Math.max(-0.5, Math.min(0.5, data.pc2[i]))))  // Clip y to [-2, 2]
+        .attr("r", 3) 
+
+    // Define an arrowhead marker
+    svg.append("defs")
+        .append("marker")
+        .attr("id", "arrowhead")
+        .attr("refX", 6)  // Adjust the arrowhead position
+        .attr("refY", 3)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M 0,0 L 6,3 L 0,6 Z")  // Arrowhead shape
+        .attr("fill", "red");
+
+    // Draw feature vectors as red thin lines with arrowheads
+    svg.selectAll(".vector")
+        .data(data.loadings)
+        .enter()
+        .append("line")
+        .attr("class", "vector")
+        .attr("x1", xScale(0))
+        .attr("y1", yScale(0))
+        .attr("x2", (d) => xScale(d[0] * maxLoading))  // Scale loadings for visibility
+        .attr("y2", (d) => yScale(d[1] * maxLoading))
+        .attr("stroke", "red")
+        .attr("stroke-width", 1)  // Thin lines
+        .attr("opacity", 0.8)
+        .attr("marker-end", "url(#arrowhead)");  // Add arrowhead
+
+    // Draw x and y axes passing through (0, 0)
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
+
+    // Draw x-axis at y = 0
+    svg.append("g")
+        .attr("transform", `translate(0,${yScale(0)})`)
+        .call(xAxis);
+
+    // Draw y-axis at x = 0
+    svg.append("g")
+        .attr("transform", `translate(${xScale(0)},0)`)
+        .call(yAxis);
 }

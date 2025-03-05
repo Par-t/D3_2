@@ -3,19 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PCA Scree Plot</title>
+    <title>Data Visualization</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>PCA Scree Plot</h1>
-    <svg id="screePlot" width="800" height="500"></svg>
-    <p>Select intrinsic dimensionality:</p>
-    <input type="range" id="dimSelector" min="1" max="12" value="1">
-    <span id="selectedDim">1</span>
+    <!-- Header with buttons -->
+    <header class="header">
+        <div class="header-content">
+            <h1>Data Visualization</h1>
+            <div class="buttons">
+                <button class="task-button" id="task1">PCA (Task 1)</button>
+                <button class="task-button" id="task2">Scatter Plot Matrix (Task 2)</button>
+                <button class="task-button" id="task3">k-means (Task 3)</button>
+            </div>
+        </div>
+    </header>
 
+    <!-- Main content -->
+    <main>
+        <!-- Scree Plot Section -->
+        <div class="plot-container">
+            <h2>Scree Plot</h2>
+            <svg id="screePlot" width="800" height="500"></svg>
+            <p>Select intrinsic dimensionality:</p>
+            <input type="range" id="dimSelector" min="1" max="12" value="1">
+            <span id="selectedDim">1</span>
+        </div>
+
+        <!-- Biplot Section -->
+        <div class="biplot-container">
+            <h2>PCA Biplot</h2>
+            <svg id="biplot" width="800" height="500"></svg>
+        </div>
+    </main>
+
+    <!-- Scripts -->
     <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 </body>
-</html> 
-
-
+</html>

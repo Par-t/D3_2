@@ -1,53 +1,119 @@
-/* Slider container */
-.slider-container {
-    width: 100%;
-    margin-top: 20px;
+/* General styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+/* Header */
+.header {
+    background-color: #2c3e50;  /* Dark blue */
+    color: white;
+    padding: 20px 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+/* Buttons */
+.buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.task-button {
+    background-color: #3498db;  /* Blue */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.task-button:hover {
+    background-color: #2980b9;  /* Darker blue */
+}
+
+/* Main content */
+main {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+/* Plot containers */
+.plot-container, .biplot-container {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
     text-align: center;
 }
 
-/* Styling the slider itself */
-#slider {
-    width: 80%;  /* Adjust the width as needed */
-    height: 15px;
-    border-radius: 5px;
-    background: #ddd;
-    outline: none;
-    -webkit-appearance: none;
-    margin: 0 auto;
+.plot-container h2, .biplot-container h2 {
+    margin-top: 0;
+    color: #2c3e50;
 }
 
-/* Styling the thumb of the slider */
-#slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 25px;
-    height: 25px;
-    background: #4CAF50;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: background 0.3s ease;
+.highlightPoint{
+    fill: red;
+    stroke: none;
 }
 
-#slider::-moz-range-thumb {
-    width: 25px;
-    height: 25px;
-    background: #4CAF50;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: background 0.3s ease;
+/* Scree plot and biplot SVG containers */
+#screePlot, #biplot {
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    margin: 20px auto;
+    display: block;
 }
 
-#slider:hover::-webkit-slider-thumb {
-    background: #45a049;
+/* Style for data points */
+.point {
+    fill: #00CED1;  /* Blue cyan */
+    stroke: #333;
+    stroke-width: 0;
+    opacity: 0.7;
 }
 
-#slider:hover::-moz-range-thumb {
-    background: #45a049;
+/* Style for feature vectors */
+.vector {
+    stroke: red;
+    stroke-width: 1;  /* Thin lines */
+    opacity: 0.8;
 }
 
-/* Text displaying the current value of the slider */
-#slider-value {
-    font-size: 1.2em;
-    color: #333;
-    margin-top: 10px;
+/* Gridlines */
+.grid line {
+    stroke: #ddd;
+    stroke-dasharray: 2, 2;
+}
+
+/* Axes */
+.axis path,
+.axis line {
+    stroke: #333;
+    shape-rendering: crispEdges;
+}
+
+.axis text {
+    font-size: 12px;
+    fill: #333;
 }
