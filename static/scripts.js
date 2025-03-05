@@ -1,14 +1,68 @@
 document.addEventListener("DOMContentLoaded", function () {
+
+    const task1Button = document.getElementById("task1");
+    const task2Button = document.getElementById("task2");
+    // const task3Button = document.getElementById("task3");
+
+    const task1Content = document.getElementById("task1-content");
+    const task2Content = document.getElementById("task2-content");
+    // const task3Content = document.getElementById("task3-content");
+
+    // Function to hide all content sections
+    function hideAllContent() {
+        task1Content.style.display = "none";
+        document.getElementById("biplot-content").style.display = "none"; // id selects only the first element
+        task2Content.style.display = "none";
+        document.getElementById("scatterplotMatrix").style.display = "none"; // Hide scatterplotMatrix by default
+    }
+    
+    // Show Task 1 content (PCA)
+    task1Button.addEventListener("click", function () {
+        hideAllContent();
+        task1Content.style.display = "block";
+        document.getElementById("biplot-content").style.display = "block";
+    });
+
+    // Show Task 2 content (Scatter Plot Matrix)
+    task2Button.addEventListener("click", function () {
+        hideAllContent();
+        task2Content.style.display = "block";
+        document.getElementById("scatterplotMatrix").style.display = "block";
+    });
+
+    // Show Task 3 content (k-means)
+    // task3Button.addEventListener("click", function () {
+    //     hideAllContent();
+    //     task3Content.style.display = "block";
+    // });
+
+    // Default: Show Task 1 content
+    hideAllContent();
+    task1Content.style.display = "block";
+    document.getElementById("biplot-content").style.display = "block";
+    
+
     fetch('/data')  // Fetch PCA eigenvalues from Flask
         .then(response => response.json())
         .then(data => drawScreePlot(data))
         .catch(error => console.error("Error loading data:", error));
 
-        fetch('/biplot_data')
+    fetch('/biplot_data')
         .then(response => response.json())
         .then(data => drawBiplot(data))
         .catch(error => console.error("Error loading biplot data:", error));
-});
+    
+    fetch('/top_features')
+        .then(response => response.json())
+        .then(data => populateTopFeaturesTable(data))
+        .catch(error => console.error("Error loading top features:", error));
+
+    fetch('/scatterplot_matrix_data')
+        .then(response => response.json())
+        .then(data => renderScatterplotMatrix(data.scatter_data, data.top_features))
+        .catch(error => console.error("Error fetching scatterplot matrix data:", error));
+    });
+
 
 function drawScreePlot(eigenvalues) {
     const width = 800, height = 500, margin = { top: 50, right: 30, bottom: 50, left: 60 };
@@ -231,3 +285,141 @@ function drawBiplot(data) {
         .attr("transform", `translate(${xScale(0)},0)`)
         .call(yAxis);
 }
+
+function populateTopFeaturesTable(data) {
+    const tableBody = document.querySelector("#topFeaturesTable tbody");
+
+    // Clear existing rows
+    tableBody.innerHTML = "";
+
+    // Add rows for top features
+    data.forEach(item => {
+        const row = document.createElement("tr");
+
+        const featureCell = document.createElement("td");
+        featureCell.textContent = item.feature;
+
+        const squaredSumCell = document.createElement("td");
+        squaredSumCell.textContent = item.squared_sum;
+
+        row.appendChild(featureCell);
+        row.appendChild(squaredSumCell);
+        tableBody.appendChild(row);
+    });
+}
+
+function renderScatterplotMatrix(data, features) {
+    console.log("Rendering Scatter Plot Matrix");
+
+    // Set size and padding of each scatter plot cell
+    const size = 150; // Size of each small plot
+    const padding = 20; // Padding between plots
+
+    // Calculate the total width and height of the matrix
+    const width = features.length * size + padding;
+    const height = features.length * size + padding;
+
+    // Create an SVG container for the scatter plot matrix
+    const svg = d3.select("#scatterPlot")
+        .attr("width", width)
+        .attr("height", height);
+
+    // Remove any existing SVG to prevent duplication
+    svg.selectAll("*").remove();
+
+    // Create scales for each feature for proper scaling of data points
+    const scales = {};
+    features.forEach(feature => {
+        scales[feature] = d3.scaleLinear()
+            .domain(d3.extent(data, d => d[feature])) // Set domain to feature values
+            .range([padding, size - padding]); // Set range for plotting within the cell
+    });
+
+    // Function to add axis labels (used for both x and y axes)
+    function addAxisLabel(cell, x, y, text, rotate = false) {
+        const label = cell.append("text")
+            .attr("x", x)
+            .attr("y", y)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .text(text);
+
+        if (rotate) {
+            label.attr("transform", "rotate(-90)");
+        }
+    }
+
+    // Loop through features and generate the scatter plot matrix
+    for (let row = 0; row < features.length; row++) {
+        for (let col = 0; col < features.length; col++) {
+            const xFeature = features[col]; // Feature for x-axis
+            const yFeature = features[row]; // Feature for y-axis
+
+            // Create a group for each individual scatter plot
+            const cell = svg.append("g")
+                .attr("transform", `translate(${col * size}, ${row * size})`) // Position cells based on index
+                .attr("class", "scatter-plot-cell"); // Assign class to each cell for styling
+
+            // Diagonal: Add text showing feature name
+            if (row === col) {
+                cell.append("text")
+                    .attr("x", size / 2) // Position at the center of the cell
+                    .attr("y", size / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "12px")
+                    .text(xFeature); // Display the feature name on the diagonal
+            } else {
+                // Scatterplot: Plot data points in the off-diagonal cells
+                const circles = cell.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", d => scales[xFeature](d[xFeature])) // Scale x-values
+                    .attr("cy", d => size - scales[yFeature](d[yFeature])) // Scale y-values (flip Y axis for visual consistency)
+                    .attr("r", 3) // Set radius for each point
+                    .attr("fill", "steelblue"); // Set the color of the points
+
+                // Hover functionality: Change color on hover
+                circles.on("mouseover", function() {
+                    d3.select(this).attr("fill", "red"); // Change color on hover
+                })
+                .on("mouseout", function() {
+                    d3.select(this).attr("fill", "steelblue"); // Reset color on mouse out
+                });
+            }
+
+            // X-axis labels: Add labels for the x-axis at the bottom of the plot in the last row
+            if (row === features.length - 1) {
+                addAxisLabel(cell, size / 2, size + 15, xFeature);
+            }
+
+            // Y-axis labels: Add labels for the y-axis on the left side of the plot in the first column
+            if (col === 0) {
+                addAxisLabel(cell, -size / 2, -5, yFeature, true);
+            }
+
+            // ** Add border around each individual scatter plot cell**
+            cell.append("rect")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", size)
+                .attr("height", size)
+                .attr("stroke", "#ccc") // Border color
+                .attr("fill", "none") // No fill inside the border
+                .attr("stroke-width", 1); // Border thickness
+        }
+    }
+
+    // Center the scatter plot matrix horizontally on the screen
+    const containerWidth = window.innerWidth;
+    const matrixWidth = width;
+
+    d3.select("#scatterplot")
+        .style("display", "flex")
+        .style("justify-content", "center")
+        .style("width", containerWidth + "px");
+}
+
+
+
+

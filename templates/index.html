@@ -23,7 +23,7 @@
     <!-- Main content -->
     <main>
         <!-- Scree Plot Section -->
-        <div class="plot-container">
+        <div class="plot-container" id="task1-content">
             <h2>Scree Plot</h2>
             <svg id="screePlot" width="800" height="500"></svg>
             <p>Select intrinsic dimensionality:</p>
@@ -32,10 +32,34 @@
         </div>
 
         <!-- Biplot Section -->
-        <div class="biplot-container">
+        <div class="biplot-container" id="biplot-content">
             <h2>PCA Biplot</h2>
             <svg id="biplot" width="800" height="500"></svg>
         </div>
+
+            <!-- Top Features Table -->
+        <div class="table-container" id="task2-content" >
+            <h2>Top 4 Features by PCA Loadings</h2>
+            <table id="topFeaturesTable">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Squared Sum of Loadings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows will be populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+        
+
+        <div class="scatterplotMatrix-container" id="scatterplotMatrix">
+            <h2>Scatterplot Matrix</h2>
+            <svg id="scatterPlot" width="800" height="800"></svg>
+        </div>
+
+
     </main>
 
     <!-- Scripts -->

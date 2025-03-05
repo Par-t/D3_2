@@ -90,5 +90,70 @@ def get_biplot_data():
     }
 
     return jsonify(biplot_data)
+
+@app.route('/top_features')
+def get_top_features():
+    # Get PCA loadings (components)
+    loadings = pca.components_
+    print("loadings",loadings)
+    # Calculate squared sum of loadings for each feature
+    squared_sums = np.sum(loadings**2, axis=0)
+
+    # Pair feature names with their squared sums
+    feature_squared_sums = list(zip(selected_columns, squared_sums))
+
+    # Sort by squared sums in descending order
+    feature_squared_sums.sort(key=lambda x: x[1], reverse=True)
+
+    # Select top 4 features
+    top_features = feature_squared_sums[:4]
+
+    # Prepare data to send
+    top_features_data = [{"feature": feature, "squared_sum": round(squared_sum, 4)} for feature, squared_sum in top_features]
+
+    return jsonify(top_features_data)
+
+@app.route('/scatterplot_matrix_data')
+def get_scatterplot_matrix_data():
+
+    top_features_dict = {}
+    # Get PCA loadings (components)
+    for i in range(1,12):
+        loadings = pca.components_[:i]
+
+        # Calculate squared sum of PCA loadings for each feature
+        squared_sums = np.sum(loadings**2, axis=0)
+
+        # Pair feature names with their squared sums
+        feature_squared_sums = list(zip(selected_columns, squared_sums))
+
+        # Sort by squared sums in descending order
+        feature_squared_sums.sort(key=lambda x: x[1], reverse=True)
+
+        # Select top 4 features
+        top_features = [feature for feature, _ in feature_squared_sums[:4]]
+
+        print(top_features)
+        # Filter dataset to include only these 4 features
+        top_4_indices = [df_to_scale.columns.get_loc(feature) for feature in top_features] #location in not scaled df
+
+        #coressponding columns in df_Scaled
+        scaled_top_4_values = df_scaled[:, top_4_indices]
+
+        # Step 3: Create a new DataFrame df_attr with the scaled values and the feature names
+        df_attr = pd.DataFrame(scaled_top_4_values, columns=top_features)
+
+        # Now df_attr will contain the scaled values for the top 4 features.
+
+        filtered_data = df_attr.to_dict(orient="records")
+
+        top_features_dict[i] = {
+            "top_features": top_features,
+            "scatter_data": filtered_data
+        } 
+        # Return JSON response
+    return jsonify(top_features_dict)
+
+
 if __name__ == '__main__':
     app.run(debug=True)
