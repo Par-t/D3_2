@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 app = Flask(__name__)
 
@@ -16,7 +17,7 @@ CSV_FILE = os.path.join(UPLOAD_FOLDER, "data.csv")
 df = pd.read_csv(CSV_FILE)
 
 selected_columns = ['TotalPop', 'Hispanic', 'White', 'Black',
-                    'Asian', 'Income', 'Poverty', 'Unemployment', 'PrivateWork', 'Professional', 'Service', 'Drive']
+                    'Asian', 'Income', 'Poverty', 'Unemployment', 'Professional', 'Service', 'Drive']
 
 df_selected = df[selected_columns].dropna()
 
@@ -60,9 +61,9 @@ least_contrib_indices = np.argsort(eigenvalues)[:2]
 least_contrib_columns = [selected_columns[i] for i in least_contrib_indices]
 
 feature_names = df_to_scale.columns.tolist()
-print(f"Two columns contributing the least: {least_contrib_columns}")
+# print(f"Two columns contributing the least: {least_contrib_columns}")
 
-print("Sum of Eigenvalues (Explained Variance Ratio):", sum(eigenvalues))
+# print("Sum of Eigenvalues (Explained Variance Ratio):", sum(eigenvalues))
 
 @app.route('/')
 def index():
@@ -93,29 +94,34 @@ def get_biplot_data():
 
 @app.route('/top_features')
 def get_top_features():
+    top_features_dic={}
     # Get PCA loadings (components)
-    loadings = pca.components_
-    print("loadings",loadings)
-    # Calculate squared sum of loadings for each feature
-    squared_sums = np.sum(loadings**2, axis=0)
+    for i in range(1,12):
+        loadings = pca.components_[:i]
+        # print("loadings",loadings)
+        # Calculate squared sum of loadings for each feature
+        squared_sums = np.sum(loadings**2, axis=0)
 
-    # Pair feature names with their squared sums
-    feature_squared_sums = list(zip(selected_columns, squared_sums))
+        # Pair feature names with their squared sums
+        feature_squared_sums = list(zip(selected_columns, squared_sums))
 
-    # Sort by squared sums in descending order
-    feature_squared_sums.sort(key=lambda x: x[1], reverse=True)
+        # Sort by squared sums in descending order
+        feature_squared_sums.sort(key=lambda x: x[1], reverse=True)
 
-    # Select top 4 features
-    top_features = feature_squared_sums[:4]
+        # Select top 4 features
+        top_features = feature_squared_sums[:4]
 
-    # Prepare data to send
-    top_features_data = [{"feature": feature, "squared_sum": round(squared_sum, 4)} for feature, squared_sum in top_features]
+        # Prepare data to send
+        top_features_data = [{"feature": feature, "squared_sum": round(squared_sum, 4)} for feature, squared_sum in top_features]
 
-    return jsonify(top_features_data)
+        top_features_dic[i]=top_features_data
+
+    return jsonify(top_features_dic)
 
 @app.route('/scatterplot_matrix_data')
 def get_scatterplot_matrix_data():
 
+    print("getting matrix data")
     top_features_dict = {}
     # Get PCA loadings (components)
     for i in range(1,12):
@@ -133,7 +139,6 @@ def get_scatterplot_matrix_data():
         # Select top 4 features
         top_features = [feature for feature, _ in feature_squared_sums[:4]]
 
-        print(top_features)
         # Filter dataset to include only these 4 features
         top_4_indices = [df_to_scale.columns.get_loc(feature) for feature in top_features] #location in not scaled df
 
@@ -151,9 +156,32 @@ def get_scatterplot_matrix_data():
             "top_features": top_features,
             "scatter_data": filtered_data
         } 
+
         # Return JSON response
     return jsonify(top_features_dict)
 
+@app.route('/kmeans_pca', methods=['GET'])
+def kmeans_pca():
+ 
+    # Get PCA1 and PCA2
+    pca1 = principal_components[:, 0]  # First principal component
+    pca2 = principal_components[:, 1]  # Second principal component
+
+    # Perform KMeans clustering on PCA1 and PCA2
+    kmeans = KMeans(n_clusters=3)  # Adjust number of clusters as needed
+    kmeans.fit(np.column_stack((pca1, pca2)))  # Use PCA1 and PCA2 for clustering
+    cluster_ids = kmeans.labels_  # Get cluster IDs for each data point
+
+    # Prepare data for the frontend (sending PCA1, PCA2 and cluster IDs)
+    pca_data = pd.DataFrame({'PCA1': pca1, 'PCA2': pca2, 'ClusterID': cluster_ids})
+
+    # Convert to dictionary for sending via JSON
+    scatter_data = pca_data.to_dict(orient="records")
+
+    return jsonify({
+        'scatter_data': scatter_data,
+        'cluster_centers': kmeans.cluster_centers_.tolist()
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

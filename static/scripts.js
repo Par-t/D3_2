@@ -54,15 +54,33 @@ document.addEventListener("DOMContentLoaded", function () {
     
     fetch('/top_features')
         .then(response => response.json())
-        .then(data => populateTopFeaturesTable(data))
+        .then(data => populateTopFeaturesTable(data[dimValue]))
         .catch(error => console.error("Error loading top features:", error));
 
+    const dimValue = document.getElementById("dimSelector").value;
     fetch('/scatterplot_matrix_data')
         .then(response => response.json())
-        .then(data => renderScatterplotMatrix(data.scatter_data, data.top_features))
+        .then(data => renderScatterplotMatrix(data[dimValue].scatter_data, data[dimValue].top_features))
         .catch(error => console.error("Error fetching scatterplot matrix data:", error));
     });
 
+// Update the displayed value when slider changes
+document.getElementById('dimSelector').addEventListener('input', function () {
+    var dimValue = this.value;
+    document.getElementById('selectedDim').textContent = dimValue; // Update the displayed value
+
+    fetch('/top_features')
+    .then(response => response.json())
+    .then(data => populateTopFeaturesTable(data[dimValue]))
+    .catch(error => console.error("Error loading top features:", error));
+
+
+    // Fetch the data based on the new slider value
+    fetch(`/scatterplot_matrix_data`)
+        .then(response => response.json())
+        .then(data => renderScatterplotMatrix(data[dimValue].scatter_data, data[dimValue].top_features))
+        .catch(error => console.error("Error fetching scatterplot matrix data:", error));
+});
 
 function drawScreePlot(eigenvalues) {
     const width = 800, height = 500, margin = { top: 50, right: 30, bottom: 50, left: 60 };
