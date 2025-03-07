@@ -9,12 +9,16 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
+from kneed import KneeLocator
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "data"
 CSV_FILE = os.path.join(UPLOAD_FOLDER, "data.csv")
 
 df = pd.read_csv(CSV_FILE)
+
+#NEW
+df= df[df["State"]=="New York"]
 
 selected_columns = ['TotalPop', 'Hispanic', 'White', 'Black',
                     'Asian', 'Income', 'Poverty', 'Unemployment', 'Professional', 'Service', 'Drive']
@@ -23,25 +27,7 @@ df_selected = df[selected_columns].dropna()
 
 percentage_columns = ['Hispanic', 'White', 'Black', 'Asian', 'Poverty', 'Unemployment', 'Professional', 'Service', 'Drive']
 
-# Multiply percentage columns by TotalPop to get absolute counts
-for col in percentage_columns:
-    df_selected[col] = df_selected[col] * df_selected['TotalPop'] / 100  # Convert percentages to absolute values
-
-# Columns to sum directly
-sum_columns = ['TotalPop', 'Income'] + percentage_columns
-
-# Group by 'County' and aggregate
-df_grouped = df.groupby('County')[sum_columns].sum().reset_index()
-
-# Convert back to percentages
-for col in percentage_columns:
-    df_grouped[col] = (df_grouped[col] * 100 / df_grouped['TotalPop']).round(2)
-
-# Save the grouped dataset
-df_grouped.to_csv(UPLOAD_FOLDER+"/grouped_by_county.csv", index=False)
-
-# Drop the 'County' column and select all other numerical features for PCA
-df_to_scale = df_grouped.drop(columns=['County']).dropna()
+df_to_scale=df_selected.dropna()
 
 # Standardize the data
 scaler = StandardScaler()
@@ -52,24 +38,15 @@ num_components = min(df_scaled.shape)  # Maximum possible components
 pca = PCA(n_components=num_components)
 principal_components = pca.fit_transform(df_scaled)
 
-# Get Eigenvalues (Variance Explained)
 eigenvalues = pca.explained_variance_ratio_
 
-least_contrib_indices = np.argsort(eigenvalues)[:2]
-
-# Get the names of the two columns contributing the least
-least_contrib_columns = [selected_columns[i] for i in least_contrib_indices]
-
 feature_names = df_to_scale.columns.tolist()
-# print(f"Two columns contributing the least: {least_contrib_columns}")
-
-# print("Sum of Eigenvalues (Explained Variance Ratio):", sum(eigenvalues))
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/data')
+@app.route('/screeplot_data')
 def get_data():
     return jsonify(eigenvalues.tolist())  # Convert NumPy array to list for JSON serialization
 
@@ -100,12 +77,12 @@ def get_top_features():
         loadings = pca.components_[:i]
         # print("loadings",loadings)
         # Calculate squared sum of loadings for each feature
-        squared_sums = np.sum(loadings**2, axis=0)
-
-        # Pair feature names with their squared sums
-        feature_squared_sums = list(zip(selected_columns, squared_sums))
+        squared_sums = np.sum(loadings[:i]**2, axis=0)
 
         # Sort by squared sums in descending order
+        feature_names = df_to_scale.columns.tolist()
+        feature_squared_sums = list(zip(feature_names, squared_sums))
+
         feature_squared_sums.sort(key=lambda x: x[1], reverse=True)
 
         # Select top 4 features
@@ -121,17 +98,17 @@ def get_top_features():
 @app.route('/scatterplot_matrix_data')
 def get_scatterplot_matrix_data():
 
-    print("getting matrix data")
     top_features_dict = {}
     # Get PCA loadings (components)
     for i in range(1,12):
         loadings = pca.components_[:i]
 
         # Calculate squared sum of PCA loadings for each feature
-        squared_sums = np.sum(loadings**2, axis=0)
+        squared_sums = np.sum(loadings[:i]**2, axis=0)
 
         # Pair feature names with their squared sums
-        feature_squared_sums = list(zip(selected_columns, squared_sums))
+        feature_names = df_to_scale.columns.tolist()
+        feature_squared_sums = list(zip(feature_names, squared_sums))
 
         # Sort by squared sums in descending order
         feature_squared_sums.sort(key=lambda x: x[1], reverse=True)
@@ -160,28 +137,41 @@ def get_scatterplot_matrix_data():
         # Return JSON response
     return jsonify(top_features_dict)
 
-@app.route('/kmeans_pca', methods=['GET'])
+@app.route('/kmeans')
 def kmeans_pca():
- 
-    # Get PCA1 and PCA2
+# Get PCA1 and PCA2
     pca1 = principal_components[:, 0]  # First principal component
     pca2 = principal_components[:, 1]  # Second principal component
 
-    # Perform KMeans clustering on PCA1 and PCA2
-    kmeans = KMeans(n_clusters=3)  # Adjust number of clusters as needed
-    kmeans.fit(np.column_stack((pca1, pca2)))  # Use PCA1 and PCA2 for clustering
-    cluster_ids = kmeans.labels_  # Get cluster IDs for each data point
+    # Determine the range of k values to test (e.g., from 1 to 10 clusters)
+    k_range = range(1, 11)  # You can adjust this range based on your needs
+    inertia_values = []
 
-    # Prepare data for the frontend (sending PCA1, PCA2 and cluster IDs)
-    pca_data = pd.DataFrame({'PCA1': pca1, 'PCA2': pca2, 'ClusterID': cluster_ids})
+    # Perform KMeans clustering for each k and calculate inertia (MSE)
+    for k in k_range:
+        kmeans = KMeans(n_clusters=k)
+        kmeans.fit(np.column_stack((pca1, pca2)))
+        inertia_values.append(kmeans.inertia_)  # Inertia is the sum of squared distances
 
-    # Convert to dictionary for sending via JSON
-    scatter_data = pca_data.to_dict(orient="records")
+    # Use Kneedle algorithm to find the elbow point
+    kneedle = KneeLocator(k_range, inertia_values, curve='convex', direction='decreasing')
+    best_k = kneedle.elbow  # This will return the k value where the elbow occurs
 
+    # Prepare data for the frontend: Only MSE and k values for the bar graph
+    mse_k_pairs = [{'k': k, 'MSE': mse} for k, mse in zip(k_range, inertia_values)]
+
+    # Print the optimal k
+    print(f"Optimal k (using Kneedle): {best_k}")
+    print("PC1 Range:", pca1.min(), "to", pca1.max())
+    print("PC2 Range:", pca2.min(), "to", pca2.max())
+
+    # Return only the MSE and k values for rendering in the frontend
     return jsonify({
-        'scatter_data': scatter_data,
-        'cluster_centers': kmeans.cluster_centers_.tolist()
+        'mse_k_pairs': mse_k_pairs,
+        'best_k': int(best_k)  # Send MSE and k pairs to frontend
     })
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,12 +1,16 @@
+let selectedK=0
+let dimValue=0
+
+
 document.addEventListener("DOMContentLoaded", function () {
 
     const task1Button = document.getElementById("task1");
     const task2Button = document.getElementById("task2");
-    // const task3Button = document.getElementById("task3");
+    const task3Button = document.getElementById("task3");
 
     const task1Content = document.getElementById("task1-content");
     const task2Content = document.getElementById("task2-content");
-    // const task3Content = document.getElementById("task3-content");
+    const task3Content = document.getElementById("task3-content");
 
     // Function to hide all content sections
     function hideAllContent() {
@@ -30,11 +34,11 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("scatterplotMatrix").style.display = "block";
     });
 
-    // Show Task 3 content (k-means)
-    // task3Button.addEventListener("click", function () {
-    //     hideAllContent();
-    //     task3Content.style.display = "block";
-    // });
+    //Show Task 3 content (k-means)
+    task3Button.addEventListener("click", function () {
+        hideAllContent();
+        task3Content.style.display = "block";
+    });
 
     // Default: Show Task 1 content
     hideAllContent();
@@ -42,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("biplot-content").style.display = "block";
     
 
-    fetch('/data')  // Fetch PCA eigenvalues from Flask
+    fetch('/screeplot_data')  // Fetch PCA eigenvalues from Flask
         .then(response => response.json())
         .then(data => drawScreePlot(data))
         .catch(error => console.error("Error loading data:", error));
@@ -57,30 +61,26 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(data => populateTopFeaturesTable(data[dimValue]))
         .catch(error => console.error("Error loading top features:", error));
 
-    const dimValue = document.getElementById("dimSelector").value;
+    let dimValue=11
     fetch('/scatterplot_matrix_data')
         .then(response => response.json())
         .then(data => renderScatterplotMatrix(data[dimValue].scatter_data, data[dimValue].top_features))
         .catch(error => console.error("Error fetching scatterplot matrix data:", error));
-    });
-
-// Update the displayed value when slider changes
-document.getElementById('dimSelector').addEventListener('input', function () {
-    var dimValue = this.value;
-    document.getElementById('selectedDim').textContent = dimValue; // Update the displayed value
-
-    fetch('/top_features')
-    .then(response => response.json())
-    .then(data => populateTopFeaturesTable(data[dimValue]))
-    .catch(error => console.error("Error loading top features:", error));
-
-
-    // Fetch the data based on the new slider value
-    fetch(`/scatterplot_matrix_data`)
+    
+    // const kValue = document.getElementById('selectedK').value;  // Get the current value of k from the slider
+    fetch(`/kmeans`)
         .then(response => response.json())
-        .then(data => renderScatterplotMatrix(data[dimValue].scatter_data, data[dimValue].top_features))
-        .catch(error => console.error("Error fetching scatterplot matrix data:", error));
-});
+        .then(data => renderKGraph(data.mse_k_pairs,data.best_k))
+        .catch(error => console.log("Error fetching KMeans data:", error));
+    
+    updateDimValueDisplay();
+        });
+
+
+function updateDimValueDisplay() {
+    console.log("hi")
+            d3.select("#dimValueBox").property("value", `Intrinsic Dimensionality Index: ${dimValue}`);
+}
 
 function drawScreePlot(eigenvalues) {
     const width = 800, height = 500, margin = { top: 50, right: 30, bottom: 50, left: 60 };
@@ -99,31 +99,84 @@ function drawScreePlot(eigenvalues) {
         .domain([0, 1]) // Set y-axis to go from 0 to 1 (since cumulative variance reaches 1)
         .range([height - margin.bottom, margin.top]);
 
-    // Add bars with a gradient fill to enhance visual appeal
-    const gradient = svg.append("defs")
-        .append("linearGradient")
-        .attr("id", "barGradient")
-        .attr("x1", "0%")
-        .attr("x2", "100%")
-        .attr("y1", "0%")
-        .attr("y2", "100%")
-        .append("stop")
-        .attr("offset", "0%")
-        .attr("stop-color", "#4d79ff")
-        .append("stop")
-        .attr("offset", "100%")
-        .attr("stop-color", "#1a3e75");
-
-    svg.selectAll(".bar")
+        const bars = svg.selectAll(".bar")
         .data(eigenvalues)
         .enter()
         .append("rect")
         .attr("class", "bar")
+        .attr("data-dim", (_, i) => i + 1)
         .attr("x", (_, i) => xScale(`PC${i + 1}`))
         .attr("y", d => yScale(d)) // Scale based on the eigenvalue
         .attr("width", xScale.bandwidth())
         .attr("height", d => height - margin.bottom - yScale(d))
-        .attr("fill", "url(#barGradient)");
+        .attr("fill", "#4d79ff")
+        .on("click", function(event, d) {
+            const bar = d3.select(this);
+            
+            const dataDimStr = bar.attr("data-dim");
+            const clickedDim = parseInt(dataDimStr, 10);
+            if (dimValue == clickedDim) {
+                // Do nothing if the same bar is clicked
+                return;
+            }
+            // Update global dimValue and update bar colors
+            dimValue = clickedDim;
+            updateDimValueDisplay();
+            console.log("Selected Dimensionality (K):", dimValue);
+            svg.selectAll(".bar")
+               .attr("fill", (_, i) => i + 1 <= dimValue ? "orange" : "#4d79ff");
+            
+            fetch('/top_features')
+               .then(response => response.json())
+               .then(data => populateTopFeaturesTable(data[dimValue]))
+               .catch(error => console.error("Error loading top features:", error));
+    
+            fetch('/scatterplot_matrix_data')
+               .then(response => response.json())
+               .then(data => renderScatterplotMatrix(data[dimValue].scatter_data, data[dimValue].top_features))
+               .catch(error => console.error("Error fetching scatterplot matrix data:", error));
+            
+            
+        });
+    
+    // Add invisible hitbox above each bar for better clickability
+    svg.selectAll(".hitbox")
+        .data(eigenvalues)
+        .enter()
+        .append("rect")
+        .attr("class", "hitbox")
+        .attr("data-dim", (_, i) => i + 1) 
+        .attr("x", (_, i) => xScale(`PC${i + 1}`)) // Same position as the bars
+        .attr("y", margin.top) // Place it from the top margin to make the hitbox extend to the whole graph height
+        .attr("width", xScale.bandwidth())
+        .attr("height", height - margin.top - margin.bottom) // Full height for better click detection
+        .attr("fill", "transparent")
+        .attr("pointer-events", "visibleFill")  // Allow interaction with the invisible hitbox
+        .on("click", function(event, d) {
+            const hitbox = d3.select(this);
+            const dataDimStr = hitbox.attr("data-dim");
+            const clickedDim = parseInt(dataDimStr, 10);
+            if (dimValue == clickedDim) {
+                // Do nothing if the same hitbox is clicked
+                return;
+            }
+            // Update global dimValue and update bar colors
+            dimValue = clickedDim;
+            console.log("Selected Dimensionality (K):", dimValue);
+            svg.selectAll(".bar")
+               .attr("fill", (_, i) => i + 1 <= dimValue ? "orange" : "#4d79ff");
+            
+            fetch('/top_features')
+               .then(response => response.json())
+               .then(data => populateTopFeaturesTable(data[dimValue]))
+               .catch(error => console.error("Error loading top features:", error));
+    
+            fetch('/scatterplot_matrix_data')
+               .then(response => response.json())
+               .then(data => renderScatterplotMatrix(data[dimValue].scatter_data, data[dimValue].top_features))
+               .catch(error => console.error("Error fetching scatterplot matrix data:", error));
+        });
+    
 
     // Remove axis lines but keep labels for x-axis and y-axis
     const xAxisGroup = svg.append("g")
@@ -208,22 +261,22 @@ function drawScreePlot(eigenvalues) {
         .style("font-size", "14px")
         .text("Cumulative Variance");
 
-    // Handle interaction for selecting intrinsic dimensionality
-    d3.select("#dimSelector")
-        .on("input", function () {
-            const selectedDim = +this.value;
-            d3.select("#selectedDim").text(selectedDim);
+    // // Handle interaction for selecting intrinsic dimensionality
+    // d3.select("#dimSelector")
+    //     .on("input", function () {
+    //         const selectedDim = +this.value;
+    //         d3.select("#selectedDim").text(selectedDim);
 
-            // Highlight selected components
-            svg.selectAll(".bar")
-                .attr("fill", (_, i) => i < selectedDim ? "orange" : "url(#barGradient)");
+    //         // Highlight selected components
+    //         svg.selectAll(".bar")
+    //             .attr("fill", (_, i) => i < selectedDim ? "orange" : "#4d79ff");
 
-            // Highlight the selected x-axis points
-            svg.selectAll(".highlightPoint")
-                .attr("fill", (_, i) => i < selectedDim ? "#39FF14" : "#FF5F00")
-                .attr("stroke-width", 0);
+    //         // Highlight the selected x-axis points
+    //         svg.selectAll(".highlightPoint")
+    //             .attr("fill", (_, i) => i < selectedDim ? "#39FF14" : "#FF5F00")
+    //             .attr("stroke-width", 0);
                 
-        });
+    //     });
 }
 
 function drawBiplot(data) {
@@ -240,11 +293,11 @@ function drawBiplot(data) {
 
     // Scales for the biplot (centered at 0)
     const xScale = d3.scaleLinear()
-        .domain([-0.5, 0.5])  // Symmetric around 0
+        .domain([-2, 2])  // Symmetric around 0
         .range([margin.left, width - margin.right]);
 
     const yScale = d3.scaleLinear()
-        .domain([-0.5, 0.5])  // Symmetric around 0
+        .domain([-2, 2])  // Symmetric around 0
         .range([height - margin.bottom, margin.top]);
 
     // Clear previous graph
@@ -257,8 +310,8 @@ function drawBiplot(data) {
         .enter()
         .append("circle")
         .attr("class", "point")
-        .attr("cx", (d, i) => xScale(Math.max(-0.5, Math.min(0.5, data.pc1[i]))))  // Clip x to [-2, 2]
-        .attr("cy", (d, i) => yScale(Math.max(-0.5, Math.min(0.5, data.pc2[i]))))  // Clip y to [-2, 2]
+        .attr("cx", (d, i) => xScale(Math.max(-2, Math.min(2, data.pc1[i]))))  // Clip x to [-2, 2]
+        .attr("cy", (d, i) => yScale(Math.max(-2, Math.min(2, data.pc2[i]))))  // Clip y to [-2, 2]
         .attr("r", 3) 
 
     // Define an arrowhead marker
@@ -399,10 +452,10 @@ function renderScatterplotMatrix(data, features) {
 
                 // Hover functionality: Change color on hover
                 circles.on("mouseover", function() {
-                    d3.select(this).attr("fill", "red"); // Change color on hover
+                    d3.select(this).attr("fill", "orange"); // Change color on hover
                 })
                 .on("mouseout", function() {
-                    d3.select(this).attr("fill", "steelblue"); // Reset color on mouse out
+                    d3.select(this).attr("fill", "#4d79ff"); // Reset color on mouse out
                 });
             }
 
@@ -437,6 +490,119 @@ function renderScatterplotMatrix(data, features) {
         .style("justify-content", "center")
         .style("width", containerWidth + "px");
 }
+
+function renderKGraph(data,best_k) {
+    const width = 800, height = 500, margin = { top: 50, right: 30, bottom: 50, left: 60 };
+
+    const svg = d3.select("#kmeansPlot")
+        .attr("width", width)
+        .attr("height", height);
+    
+    // Create the scales for x and y axes
+    const xScale = d3.scaleBand()
+        .domain(data.map(d => d.k))  // Assuming `data` is an array of objects with 'k' property
+        .range([margin.left, width - margin.right])
+        .padding(0.2);
+    
+    const yScale = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.MSE)]) // Using the MSE values for the y-axis domain
+        .range([height - margin.bottom, margin.top]);
+    
+    const bars =svg.selectAll(".bar")
+                .data(data)  // Assuming data is in the form [{k: 1, MSE: value}, {k: 2, MSE: value}, ...]
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => xScale(d.k))
+                .attr("y", d => yScale(d.MSE))  // Scale based on the MSE
+                .attr("width", xScale.bandwidth())
+                .attr("height", d => height - margin.bottom - yScale(d.MSE))
+                .attr("fill", "#4d79ff")
+                .on("click", function(event, d) {
+                    // Change color of the clicked bar to orange
+                    d3.select(this).attr("fill", "orange");
+            
+                    if (selectedK === d.k) {
+                        // If it's orange, reset the color to the gradient and reset selectedK to 0
+                        d3.select(this).attr("fill", "#4d79ff");
+                        selectedK = 0;
+                        console.log("Resetting to initial state. Selected K value: " + selectedK);
+                    } else {
+                        // Otherwise, change the color to orange and update the selectedK value
+                        bars.attr("fill", "#4d79ff");  // Reset other bars to gradient
+                        d3.select(this).attr("fill", "orange");
+                        selectedK = d.k;
+                        console.log("Selected K value: " + selectedK);
+                    }
+
+                    // Log the selected k value to the console (optional)
+                    console.log("Selected K value: " + selectedK);
+                });
+    
+    // Add x-axis with tick labels
+    const xAxisGroup = svg.append("g")
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(xScale).tickSize(0)); // Remove tick lines
+    
+    // Remove x-axis path but keep the labels
+    xAxisGroup.selectAll("path")
+        .attr("stroke", "none");
+    
+    const yAxisGroup = svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(yScale).ticks(5));
+    
+    // Remove y-axis path but keep the labels
+    yAxisGroup.selectAll("path")
+        .attr("stroke", "none");
+    
+    // Add gridlines for better readability
+    svg.append("g")
+        .attr("class", "grid")
+        .selectAll("line")
+        .data(yScale.ticks(5))
+        .enter()
+        .append("line")
+        .attr("x1", margin.left)
+        .attr("x2", width - margin.right)
+        .attr("y1", d => yScale(d))
+        .attr("y2", d => yScale(d))
+        .attr("stroke", "#ddd")
+        .attr("stroke-dasharray", "2,2");
+    
+    // Add vertical gridlines for x-axis (for each 'k')
+    svg.append("g")
+        .attr("class", "grid")
+        .selectAll("line")
+        .data(data)
+        .enter()
+        .append("line")
+        .attr("x1", d => xScale(d.k) + xScale.bandwidth() / 2)
+        .attr("x2", d => xScale(d.k) + xScale.bandwidth() / 2)
+        .attr("y1", margin.top)
+        .attr("y2", height - margin.bottom)
+        .attr("stroke", "#ddd")
+        .attr("stroke-dasharray", "2,2");
+    
+    // Add axis labels for clarity
+    svg.append("text")
+        .attr("transform", `translate(${width / 2},${height - margin.bottom + 30})`)
+        .style("text-anchor", "middle")
+        .text("k (Number of Clusters)");
+    
+    svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - margin.left)
+        .attr("x", 0 - (height / 2))
+        .style("text-anchor", "middle")
+        .text("MSE (Inertia)");
+}
+
+
+
+
+
+
 
 
 

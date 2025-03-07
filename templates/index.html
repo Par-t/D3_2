@@ -26,9 +26,14 @@
         <div class="plot-container" id="task1-content">
             <h2>Scree Plot</h2>
             <svg id="screePlot" width="800" height="500"></svg>
-            <p>Select intrinsic dimensionality:</p>
-            <input type="range" id="dimSelector" min="1" max="11" value="1">
-            <span id="selectedDim">1</span>
+            <!-- Text box to display dimValue -->
+
+            <input type="text" id="dimValueBox" value="Intrinsic Dimensionality Index: 0" readonly />
+
+
+            <!-- <p>Select intrinsic dimensionality:</p>
+            <input type="range" id="dimSelector" min="1" max="11" value="1"> -->
+            <!-- <span id="selectedDim">1</span> -->
         </div>
 
         <!-- Biplot Section -->
@@ -53,12 +58,15 @@
             </table>
         </div>
         
-
         <div class="scatterplotMatrix-container" id="scatterplotMatrix">
             <h2>Scatterplot Matrix</h2>
             <svg id="scatterPlot" width="800" height="800"></svg>
         </div>
 
+        <div class="kmeans-container" id="task3-content">
+        <h2>K Means</h2>
+        <svg id="kmeansPlot" width="800" height="500"></svg>
+        </div>
 
     </main>
 
