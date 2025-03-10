@@ -40,7 +40,30 @@ principal_components = pca.fit_transform(df_scaled)
 
 eigenvalues = pca.explained_variance_ratio_
 
+# Calculate best dimension using elbow method
+kneedle_pca = KneeLocator(range(1, len(eigenvalues) + 1), 
+                         eigenvalues, 
+                         curve='convex', 
+                         direction='decreasing')
+best_dim = kneedle_pca.elbow if kneedle_pca.elbow else 3  # Default to 3 if no clear elbow
+
 feature_names = df_to_scale.columns.tolist()
+
+cluster_data = df_to_scale.copy()
+inertia_values = []
+
+for k in range(1, 11):  # Apply KMeans for k=1 to k=10
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    cluster_labels = kmeans.fit_predict(df_scaled)  # Get the cluster labels for this k
+    cluster_data[str(k)] = cluster_labels 
+    inertia_values.append(kmeans.inertia_)
+
+cluster_loc = os.path.join(UPLOAD_FOLDER, "clusters.csv")
+cluster_data.to_csv(cluster_loc)
+
+# Use Kneedle algorithm to find the elbow point for k-means
+kneedle = KneeLocator(range(1,11), inertia_values, curve='convex', direction='decreasing')
+best_k = kneedle.elbow  # This will return the k value where the elbow occurs
 
 @app.route('/')
 def index():
@@ -48,26 +71,45 @@ def index():
 
 @app.route('/screeplot_data')
 def get_data():
-    return jsonify(eigenvalues.tolist())  # Convert NumPy array to list for JSON serialization
+    return jsonify({
+        'eigenvalues': eigenvalues.tolist(),
+        'best_dim': int(best_dim)
+    })
 
-@app.route('/biplot_data')
-def get_biplot_data():
-    # Get the first two principal components
-    pc1 = principal_components[:, 0].tolist()  # First principal component
-    pc2 = principal_components[:, 1].tolist()  # Second principal component
+from sklearn.cluster import KMeans
 
-    # Get the feature loadings for the first two components
-    loadings = pca.components_[:2].T.tolist()  # Transpose to match features
+@app.route('/get_clustered_biplot', methods=['GET'])
+def get_clustered_biplot():
+    selectedK = int(request.args.get('k', best_k))  # Default to best_k if not provided
+    x_pc = int(request.args.get('x_pc', 1)) - 1  # Convert from 1-based to 0-based indexing
+    y_pc = int(request.args.get('y_pc', 2)) - 1  # Convert from 1-based to 0-based indexing
+    
+    print(f"Selected K: {selectedK}, X-PC: {x_pc + 1}, Y-PC: {y_pc + 1}")  # Debug print
+
+    # Get the selected principal components
+    pc1 = principal_components[:, x_pc].tolist()  # X-axis PC
+    pc2 = principal_components[:, y_pc].tolist()  # Y-axis PC
+
+    # Get the feature loadings for the selected components
+    loadings = pca.components_[[x_pc, y_pc]].T.tolist()  # Transpose to match features
+
+    # Get cluster labels for the selected k
+    cluster_labels = cluster_data[str(selectedK)].tolist()
+    print(f"Number of unique clusters: {len(set(cluster_labels))}")  # Debug print
+    print(f"Cluster labels sample: {cluster_labels[:10]}")  # Debug print
 
     # Prepare the data to send
-    biplot_data = {
+    clustered_biplot_data = {
         "pc1": pc1,
         "pc2": pc2,
         "loadings": loadings,
-        "feature_names": selected_columns  # Original feature names
+        "feature_names": selected_columns,  # Original feature names
+        "cluster_labels": cluster_labels,  # Cluster labels for each data point
+        "x_pc": x_pc + 1,  # Send back the PC numbers (1-based)
+        "y_pc": y_pc + 1
     }
 
-    return jsonify(biplot_data)
+    return jsonify(clustered_biplot_data)
 
 @app.route('/top_features')
 def get_top_features():
@@ -143,22 +185,8 @@ def kmeans_pca():
     pca1 = principal_components[:, 0]  # First principal component
     pca2 = principal_components[:, 1]  # Second principal component
 
-    # Determine the range of k values to test (e.g., from 1 to 10 clusters)
-    k_range = range(1, 11)  # You can adjust this range based on your needs
-    inertia_values = []
-
-    # Perform KMeans clustering for each k and calculate inertia (MSE)
-    for k in k_range:
-        kmeans = KMeans(n_clusters=k)
-        kmeans.fit(np.column_stack((pca1, pca2)))
-        inertia_values.append(kmeans.inertia_)  # Inertia is the sum of squared distances
-
-    # Use Kneedle algorithm to find the elbow point
-    kneedle = KneeLocator(k_range, inertia_values, curve='convex', direction='decreasing')
-    best_k = kneedle.elbow  # This will return the k value where the elbow occurs
-
     # Prepare data for the frontend: Only MSE and k values for the bar graph
-    mse_k_pairs = [{'k': k, 'MSE': mse} for k, mse in zip(k_range, inertia_values)]
+    mse_k_pairs = [{'k': k, 'MSE': mse} for k, mse in zip((range(1,11)), inertia_values)]
 
     # Print the optimal k
     print(f"Optimal k (using Kneedle): {best_k}")

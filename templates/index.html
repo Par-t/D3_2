@@ -26,23 +26,60 @@
         <div class="plot-container" id="task1-content">
             <h2>Scree Plot</h2>
             <svg id="screePlot" width="800" height="500"></svg>
-            <!-- Text box to display dimValue -->
-
-            <input type="text" id="dimValueBox" value="Intrinsic Dimensionality Index: 0" readonly />
-
-
-            <!-- <p>Select intrinsic dimensionality:</p>
-            <input type="range" id="dimSelector" min="1" max="11" value="1"> -->
-            <!-- <span id="selectedDim">1</span> -->
+            <!-- New info box for PC information -->
+            <div class="pc-info-box">
+                <div class="pc-info">
+                    <span>Selected Principal Components:</span>
+                    <span id="selectedPCs">PC1 vs PC2</span>
+                </div>
+                <div class="pc-info">
+                    <span>Explained Variance:</span>
+                    <span id="explainedVariance">Loading...</span>
+                </div>
+            </div>
         </div>
 
         <!-- Biplot Section -->
         <div class="biplot-container" id="biplot-content">
             <h2>PCA Biplot</h2>
+            <div class="pc-selector">
+                <div class="selector-group">
+                    <label for="x-axis-pc">X-Axis:</label>
+                    <select id="x-axis-pc">
+                        <option value="1">PC1</option>
+                        <option value="2">PC2</option>
+                        <option value="3">PC3</option>
+                        <option value="4">PC4</option>
+                        <option value="5">PC5</option>
+                        <option value="6">PC6</option>
+                        <option value="7">PC7</option>
+                        <option value="8">PC8</option>
+                        <option value="9">PC9</option>
+                        <option value="10">PC10</option>
+                        <option value="11">PC11</option>
+                    </select>
+                </div>
+                <div class="selector-group">
+                    <label for="y-axis-pc">Y-Axis:</label>
+                    <select id="y-axis-pc">
+                        <option value="1">PC1</option>
+                        <option value="2" selected>PC2</option>
+                        <option value="3">PC3</option>
+                        <option value="4">PC4</option>
+                        <option value="5">PC5</option>
+                        <option value="6">PC6</option>
+                        <option value="7">PC7</option>
+                        <option value="8">PC8</option>
+                        <option value="9">PC9</option>
+                        <option value="10">PC10</option>
+                        <option value="11">PC11</option>
+                    </select>
+                </div>
+            </div>
             <svg id="biplot" width="800" height="500"></svg>
         </div>
 
-            <!-- Top Features Table -->
+        <!-- Top Features Table -->
         <div class="table-container" id="task2-content" >
             <h2>Top 4 Features by PCA Loadings</h2>
             <table id="topFeaturesTable">
@@ -64,8 +101,11 @@
         </div>
 
         <div class="kmeans-container" id="task3-content">
-        <h2>K Means</h2>
-        <svg id="kmeansPlot" width="800" height="500"></svg>
+            <h2>K Means</h2>
+            <svg id="kmeansPlot" width="800" height="500"></svg>
+            <div class="button-container">
+                <button id="viewBiplotBtn" class="view-biplot-btn">View Biplot</button>
+            </div>
         </div>
 
     </main>
